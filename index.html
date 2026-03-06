@@ -1,0 +1,245 @@
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiesel Simulator V3</title>
+
+<style>
+body{margin:0;overflow:hidden;background:black;font-family:Arial}
+
+#ui{
+position:absolute;
+top:10px;
+left:10px;
+color:white;
+}
+
+#controls{
+position:absolute;
+bottom:20px;
+left:20px;
+}
+
+button{
+font-size:22px;
+padding:15px;
+margin:4px;
+}
+
+#fire{
+position:absolute;
+bottom:40px;
+right:40px;
+font-size:24px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="ui">
+Kills: <span id="kills">0</span>
+</div>
+
+<div id="controls">
+<button ontouchstart="forward=true" ontouchend="forward=false">⬆</button><br>
+<button ontouchstart="left=true" ontouchend="left=false">⬅</button>
+<button ontouchstart="right=true" ontouchend="right=false">➡</button><br>
+<button ontouchstart="back=true" ontouchend="back=false">⬇</button>
+</div>
+
+<button id="fire">FIRE</button>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+
+<script>
+
+let scene=new THREE.Scene()
+
+let camera=new THREE.PerspectiveCamera(
+75,
+window.innerWidth/window.innerHeight,
+0.1,
+1000
+)
+
+let renderer=new THREE.WebGLRenderer()
+renderer.setSize(window.innerWidth,window.innerHeight)
+document.body.appendChild(renderer.domElement)
+
+let light=new THREE.DirectionalLight(0xffffff,1)
+light.position.set(5,10,5)
+scene.add(light)
+
+let groundGeo=new THREE.PlaneGeometry(800,800)
+let groundMat=new THREE.MeshLambertMaterial({color:0x2e8b57})
+let ground=new THREE.Mesh(groundGeo,groundMat)
+ground.rotation.x=-Math.PI/2
+scene.add(ground)
+
+let hullGeo=new THREE.BoxGeometry(2,0.8,4)
+let hullMat=new THREE.MeshLambertMaterial({color:0x888888})
+
+let player=new THREE.Mesh(hullGeo,hullMat)
+player.position.y=0.4
+scene.add(player)
+
+let turretGeo=new THREE.BoxGeometry(1.5,0.4,2)
+let turretMat=new THREE.MeshLambertMaterial({color:0x666666})
+
+let turret=new THREE.Mesh(turretGeo,turretMat)
+turret.position.y=0.7
+player.add(turret)
+
+let enemies=[]
+let rockets=[]
+let explosions=[]
+let kills=0
+
+let forward=false
+let back=false
+let left=false
+let right=false
+
+function spawnEnemy(){
+
+if(enemies.length>=6)return
+
+let geo=new THREE.BoxGeometry(2,1,4)
+let mat=new THREE.MeshLambertMaterial({color:0xaa0000})
+
+let enemy=new THREE.Mesh(geo,mat)
+
+enemy.position.set(
+Math.random()*150-75,
+0.5,
+Math.random()*150-75
+)
+
+scene.add(enemy)
+enemies.push(enemy)
+
+}
+
+setInterval(spawnEnemy,4000)
+
+document.getElementById("fire").onclick=function(){
+
+let geo=new THREE.SphereGeometry(0.25)
+let mat=new THREE.MeshBasicMaterial({color:0xffff00})
+
+let rocket=new THREE.Mesh(geo,mat)
+
+rocket.position.copy(player.position)
+
+rocket.userData.velocity=new THREE.Vector3(
+-Math.sin(turret.rotation.y+player.rotation.y)*1,
+0,
+-Math.cos(turret.rotation.y+player.rotation.y)*1
+)
+
+scene.add(rocket)
+rockets.push(rocket)
+
+}
+
+function explode(pos){
+
+let geo=new THREE.SphereGeometry(1)
+let mat=new THREE.MeshBasicMaterial({color:0xff5500})
+
+let boom=new THREE.Mesh(geo,mat)
+
+boom.position.copy(pos)
+
+scene.add(boom)
+
+setTimeout(()=>{scene.remove(boom)},300)
+
+}
+
+function update(){
+
+if(forward){
+player.position.x-=Math.sin(player.rotation.y)*0.25
+player.position.z-=Math.cos(player.rotation.y)*0.25
+}
+
+if(back){
+player.position.x+=Math.sin(player.rotation.y)*0.25
+player.position.z+=Math.cos(player.rotation.y)*0.25
+}
+
+if(left){
+player.rotation.y+=0.05
+}
+
+if(right){
+player.rotation.y-=0.05
+}
+
+turret.rotation.y+=0.01
+
+rockets.forEach((r,ri)=>{
+
+r.position.add(r.userData.velocity)
+
+enemies.forEach((e,ei)=>{
+
+if(r.position.distanceTo(e.position)<2){
+
+explode(e.position)
+
+scene.remove(e)
+scene.remove(r)
+
+enemies.splice(ei,1)
+rockets.splice(ri,1)
+
+kills++
+document.getElementById("kills").innerText=kills
+
+}
+
+})
+
+})
+
+enemies.forEach(e=>{
+
+let dx=player.position.x-e.position.x
+let dz=player.position.z-e.position.z
+
+let dist=Math.sqrt(dx*dx+dz*dz)
+
+e.position.x+=dx/dist*0.03
+e.position.z+=dz/dist*0.03
+
+})
+
+camera.position.x=player.position.x+8*Math.sin(player.rotation.y)
+camera.position.z=player.position.z+8*Math.cos(player.rotation.y)
+camera.position.y=5
+
+camera.lookAt(player.position)
+
+}
+
+function animate(){
+
+requestAnimationFrame(animate)
+
+update()
+
+renderer.render(scene,camera)
+
+}
+
+animate()
+
+</script>
+
+</body>
+</html>
+```
